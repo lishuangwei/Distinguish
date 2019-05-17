@@ -13,6 +13,7 @@ import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
@@ -22,9 +23,8 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.opencv.android.BaseLoaderCallback;
-import org.opencv.android.LoaderCallbackInterface;
-import org.opencv.android.OpenCVLoader;
+import com.threeglasses.threebox.mylibrary.CompareApi;
+
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -34,6 +34,7 @@ import org.opencv.imgproc.Imgproc;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ import static org.opencv.imgproc.Imgproc.COLOR_BGR2HSV;
 import static org.opencv.imgproc.Imgproc.calcHist;
 import static org.opencv.imgproc.Imgproc.compareHist;
 
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     ImageView mImg, mImg1, mImg2;
     TextView mTxt;
@@ -51,26 +53,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     List<ImagePiece> mSelImg, mSelImg1, mSelImg2;
     int mScale = 1;
 
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
-        @Override
-        public void onManagerConnected(int status) {
-            switch (status) {
-                case BaseLoaderCallback.SUCCESS:
-                    Log.i("shuang", "成功加载");
-                    break;
-                default:
-                    super.onManagerConnected(status);
-                    Log.i("shaung", "加载失败");
-                    break;
-            }
-        }
-    };
+//    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+//        @Override
+//        public void onManagerConnected(int status) {
+//            switch (status) {
+//                case BaseLoaderCallback.SUCCESS:
+//                    Log.i("shuang", "成功加载");
+//                    break;
+//                default:
+//                    super.onManagerConnected(status);
+//                    Log.i("shaung", "加载失败");
+//                    break;
+//            }
+//        }
+//    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         init();
+        CompareApi testApi = new CompareApi();
+        testApi.init(this);
+        Log.i("Alger", "CompareApi init success");
     }
 
     @Override
@@ -85,13 +90,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mImg.setOnClickListener(this);
         mImg1.setOnClickListener(this);
         mTxt = findViewById(R.id.name);
-        if (!OpenCVLoader.initDebug()) {
-            Log.d("shuang", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
-        } else {
-            Log.d("shuang", "OpenCV library found inside package. Using it!");
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-        }
+//        if (!OpenCVLoader.initDebug()) {
+//            Log.d("shuang", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+//            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
+//        } else {
+//            Log.d("shuang", "OpenCV library found inside package. Using it!");
+//            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+//        }
     }
 
     @Override
@@ -124,6 +129,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (requestCode == 1 && resultCode == RESULT_OK) {
             String path = getPath(this, data.getData());
             Log.d("shuang", "onActivityResult: " + path);
+            Log.d("shuang", "onActivityResult: video_url=" + data.getData().getPath());
             long time = System.currentTimeMillis();
             mBitmap = getVideoBuff(path, 0.2f);
             mBitmap1 = getVideoBuff(path, 0.5f);
@@ -147,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             long time = System.currentTimeMillis();
             Uri uri = data.getData();
             String img_url = uri.getPath();
-            Log.d("shuang", "onActivityResult: img_url="+img_url);
+            Log.d("shuang", "onActivityResult: img_url=" + img_url);
             try {
                 mBitmap = getBitmapFormUri(this, uri);
                 mImg1.setImageBitmap(mBitmap);
@@ -175,8 +181,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         input.close();
         int originalWidth = onlyBoundsOptions.outWidth;
         int originalHeight = onlyBoundsOptions.outHeight;
-        Log.d("shuang", "getBitmapFormUri: 宽："+originalWidth);
-        Log.d("shuang", "getBitmapFormUri: 高："+originalHeight);
+        Log.d("shuang", "getBitmapFormUri: 宽：" + originalWidth);
+        Log.d("shuang", "getBitmapFormUri: 高：" + originalHeight);
         if ((originalWidth == -1) || (originalHeight == -1))
             return null;
         float hh = 800f;
@@ -245,8 +251,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String docId = DocumentsContract.getDocumentId(uri);
                 String[] split = docId.split(":");
                 String type = split[0];
+                String path = split[1];
+
                 Log.d("shuang", "getPath: type=" + type + " docId=" + docId);
-                return "storage/" + type + "/" + split[1];
+                if ("primary".equalsIgnoreCase(type)) {
+                    return Environment.getExternalStorageDirectory() + "/" + path;
+                } else {
+                    // Get the storage path
+                    File[] cacheDirs = context.getExternalCacheDirs();
+                    String storageDir = null;
+                    for (File cacheDir : cacheDirs) {
+                        final String cachePath = cacheDir.getPath();
+                        int index = cachePath.indexOf(type);
+                        if (index >= 0) {
+                            storageDir = cachePath.substring(0, index + type.length());
+                        }
+                    }
+                    if (storageDir != null) {
+                        return storageDir + "/" + path;
+                    } else {
+                        return null;
+                    }
+                }
             } else if (isDownloadsDocument(uri)) {
                 String id = DocumentsContract.getDocumentId(uri);
                 Uri contentUri = ContentUris.withAppendedId(Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
@@ -256,7 +282,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String[] split = docId.split(":");
                 String type = split[0];
                 Uri contentUri = null;
-                if ("image".equals(type)) contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+                if ("image".equals(type))
+                    contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 else if ("video".equals(type))
                     contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 else if ("audio".equals(type))
