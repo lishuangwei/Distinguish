@@ -5,6 +5,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -31,6 +32,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.lang.Math.pow;
+import static java.lang.Math.sqrt;
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2HSV;
 import static org.opencv.imgproc.Imgproc.calcHist;
 import static org.opencv.imgproc.Imgproc.compareHist;
@@ -330,6 +333,9 @@ public class CompareUtil {
 
     //比较视频
     private int getType(List<ImagePiece> list, List<ImagePiece> list1, List<ImagePiece> list2) {
+        if (mBitmap.getWidth() <= 1920 && mBitmap.getHeight() <= 1080) {
+            return TYPE_2D;
+        }
         double hor = similar(list.get(0).getBitmap(), list.get(1).getBitmap());
         double hor1 = similar(list.get(2).getBitmap(), list.get(3).getBitmap());
         double ver = similar(list.get(0).getBitmap(), list.get(2).getBitmap());
@@ -356,7 +362,7 @@ public class CompareUtil {
                 && hor4 > ver4 && hor4 > 0.968 && hor5 > ver5 && hor5 > 0.968) {
             float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi1=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = TYPE_360LR;
             } else {
                 type = TYPE_3DLR;
@@ -366,7 +372,7 @@ public class CompareUtil {
                 && ver4 > hor4 && ver4 > 0.968 && ver5 > hor5 && ver5 > 0.968) {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
             Log.d("shuang", "getType: bi2=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = TYPE_360UD;
             } else {
                 type = TYPE_3DUD;
@@ -374,7 +380,7 @@ public class CompareUtil {
         } else {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi3=" + bi);
-            if (bi >= 2 || (mBitmap.getWidth() >= 2000 && mBitmap.getHeight() > 1080)) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = TYPE_360;
             } else {
                 type = TYPE_2D;
@@ -398,7 +404,7 @@ public class CompareUtil {
         if (hor > ver && hor > 0.968 && hor1 > ver1 && hor1 > 0.968) {
             float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi1=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = TYPE_360LR;
             } else {
                 type = TYPE_3DLR;
@@ -406,7 +412,7 @@ public class CompareUtil {
         } else if (ver > hor && ver > 0.968 && ver1 > hor1 && ver1 > 0.968) {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
             Log.d("shuang", "getType: bi2=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = TYPE_360UD;
             } else {
                 type = TYPE_3DUD;
@@ -414,7 +420,7 @@ public class CompareUtil {
         } else {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi3=" + bi);
-            if (bi >= 2 || (mBitmap.getWidth() * mScale >= 2000 && mBitmap.getHeight() * mScale > 1080)) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = TYPE_360;
             } else {
                 type = TYPE_2D;
@@ -430,7 +436,7 @@ public class CompareUtil {
     private int getHanming(int cvtype, List<ImagePiece> imagePieces) {
         int type = cvtype;
         String large = SimilarPhoto.find(imagePieces, 45);
-        String small = SimilarPhoto.find(imagePieces, 10);
+        String small = SimilarPhoto.find(imagePieces, 18);
         Log.d("shuang", "getHanming: large=" + large);
         Log.d("shuang", "getHanming: small=" + small);
         if (cvtype == TYPE_360LR || cvtype == TYPE_3DLR) {
@@ -508,4 +514,85 @@ public class CompareUtil {
         }
     }
 
+    public int edgeMatch(Bitmap srcb) {
+        //check top and bottom edge
+        float tb_totaldist = 0;
+        Mat src = new Mat();
+        Utils.bitmapToMat(srcb, src);
+        Log.d("test", "edgeMatch:src.cols()= " + src.rows());
+        Log.d("test", "edgeMatch:height= " + srcb.getHeight());
+        for (int i = 0; i < srcb.getWidth(); i++) {
+            tb_totaldist += distanceBetweenTwoPoints3D(Color.red(srcb.getPixel(i, 0)),
+                    Color.green(srcb.getPixel(i, 0)),
+                    Color.blue(srcb.getPixel(i, 0)),
+                    Color.red(srcb.getPixel(i, srcb.getHeight() - 1)),
+                    Color.blue(srcb.getPixel(i, srcb.getHeight() - 1)),
+                    Color.green(srcb.getPixel(i, srcb.getHeight() - 1)));
+        }
+        float tb_avedist = tb_totaldist / (float) srcb.getWidth();
+
+        //check left and right edge
+        boolean darkcheck = false;
+        boolean lightcheck = false;
+        boolean midcheck = false;
+        float lr_totaldist = 0;
+        Log.d("test", "edgeMatch:src.cols()= " + src.cols());
+        Log.d("test", "edgeMatch:width= " + srcb.getWidth());
+        for (int i = 0; i < srcb.getHeight(); i++) {
+            lr_totaldist += distanceBetweenTwoPoints3D(Color.red(srcb.getPixel(0, i)),
+                    Color.green(srcb.getPixel(0, i)),
+                    Color.blue(srcb.getPixel(0, i)),
+                    Color.red(srcb.getPixel(srcb.getWidth() - 1, i)),
+                    Color.green(srcb.getPixel(srcb.getWidth() - 1, i)),
+                    Color.blue(srcb.getPixel(srcb.getWidth() - 1, i)));
+
+            float colorsum = (Color.red(srcb.getPixel(i, 0)) + Color.green(srcb.getPixel(i, 0))
+                    + Color.blue(srcb.getPixel(i, 0))) / 3;
+            if (colorsum < 20) {
+                darkcheck = true;
+            }
+            if (colorsum > 230) {
+                lightcheck = true;
+            }
+            if (colorsum > 100 && colorsum < 200) {
+                midcheck = true;
+            }
+        }
+
+        float lr_avedist = lr_totaldist / (float) srcb.getHeight();
+
+        //cout << "topbottom " << tb_avedist << " leftright " << lr_avedist << endl;
+        Log.d("shuang", "lr_avedist= " + lr_avedist);
+        Log.d("shuang", "tb_avedist= " + tb_avedist);
+
+        Log.d("shuang", "darkcheck= " + darkcheck);
+        Log.d("shuang", "lightcheck= " + lightcheck);
+        Log.d("shuang", "midcheck= " + midcheck);
+        // return result by priority
+        if (lr_avedist < 0.5) {//solid colors are not good
+            return TYPE_ERROR;
+        }
+
+        if (tb_avedist > 40 && lr_avedist < 15) {//general 360 case, most 360 videos have different top and bottom
+            return TYPE_360;
+        }
+
+        if (lr_avedist < 10) {//some 360 videos have black white top and bottom edge
+            return TYPE_360;
+        }
+
+        if (lr_avedist > 50) {//very distinct 2D
+            return TYPE_2D;
+        }
+
+        if (lr_avedist < 25 && darkcheck == true && lightcheck == true && midcheck == true) {//lower requirement if edge is very distinctive
+            return TYPE_360;
+        }
+
+        return TYPE_ERROR;
+    }
+
+    double distanceBetweenTwoPoints3D(float x1, float y1, float z1, float x2, float y2, float z2) {
+        return sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2) + pow(z1 - z2, 2));
+    }
 }

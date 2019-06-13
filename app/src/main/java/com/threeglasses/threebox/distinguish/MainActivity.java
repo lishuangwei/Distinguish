@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -25,6 +26,9 @@ import android.widget.TextView;
 
 import com.threeglasses.threebox.mylibrary.CompareApi;
 
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -40,12 +44,18 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.lang.Math.log;
+import static java.lang.Math.pow;
+import static java.lang.Math.sqrt;
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2HSV;
 import static org.opencv.imgproc.Imgproc.calcHist;
 import static org.opencv.imgproc.Imgproc.compareHist;
 
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    public static final int TYPE_360 = 0;
+    public static final int TYPE_2D = 1;
+    public static final int TYPE_NO = 2;
     ImageView mImg, mImg1, mImg2;
     TextView mTxt;
     MediaMetadataRetriever mMedia;
@@ -53,29 +63,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     List<ImagePiece> mSelImg, mSelImg1, mSelImg2;
     int mScale = 1;
 
-//    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
-//        @Override
-//        public void onManagerConnected(int status) {
-//            switch (status) {
-//                case BaseLoaderCallback.SUCCESS:
-//                    Log.i("shuang", "成功加载");
-//                    break;
-//                default:
-//                    super.onManagerConnected(status);
-//                    Log.i("shaung", "加载失败");
-//                    break;
-//            }
-//        }
-//    };
+    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+        @Override
+        public void onManagerConnected(int status) {
+            switch (status) {
+                case BaseLoaderCallback.SUCCESS:
+                    Log.i("shuang", "成功加载");
+                    break;
+                default:
+                    super.onManagerConnected(status);
+                    Log.i("shaung", "加载失败");
+                    break;
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         init();
-        CompareApi testApi = new CompareApi();
-        testApi.init(this);
-        Log.i("Alger", "CompareApi init success");
+//        CompareApi testApi = new CompareApi();
+//        testApi.init(this);
+//        Log.i("Alger", "CompareApi init success");
     }
 
     @Override
@@ -90,13 +100,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mImg.setOnClickListener(this);
         mImg1.setOnClickListener(this);
         mTxt = findViewById(R.id.name);
-//        if (!OpenCVLoader.initDebug()) {
-//            Log.d("shuang", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-//            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
-//        } else {
-//            Log.d("shuang", "OpenCV library found inside package. Using it!");
-//            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-//        }
+        if (!OpenCVLoader.initDebug()) {
+            Log.d("shuang", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
+        } else {
+            Log.d("shuang", "OpenCV library found inside package. Using it!");
+            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
     }
 
     @Override
@@ -380,6 +390,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     //比较视频
     private String getType(List<ImagePiece> list, List<ImagePiece> list1, List<ImagePiece> list2) {
+        if (mBitmap.getWidth() <= 1920 && mBitmap.getHeight() <= 1080) {
+            return "2d";
+        }
         double hor = similar(list.get(0).getBitmap(), list.get(1).getBitmap());
         double hor1 = similar(list.get(2).getBitmap(), list.get(3).getBitmap());
         double ver = similar(list.get(0).getBitmap(), list.get(2).getBitmap());
@@ -406,7 +419,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 && hor4 > ver4 && hor4 > 0.968 && hor5 > ver5 && hor5 > 0.968) {
             float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi1=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = "360lr";
             } else {
                 type = "3dlr";
@@ -416,7 +429,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 && ver4 > hor4 && ver4 > 0.968 && ver5 > hor5 && ver5 > 0.968) {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
             Log.d("shuang", "getType: bi2=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = "360ud";
             } else {
                 type = "3dud";
@@ -424,7 +437,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi3=" + bi);
-            if (bi >= 2 || (mBitmap.getWidth() >= 2000 && mBitmap.getHeight() > 1080)) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = "360";
             } else {
                 type = "2d";
@@ -448,7 +461,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (hor > ver && hor > 0.968 && hor1 > ver1 && hor1 > 0.968) {
             float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi1=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = "360lr";
             } else {
                 type = "3dlr";
@@ -456,7 +469,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (ver > hor && ver > 0.968 && ver1 > hor1 && ver1 > 0.968) {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
             Log.d("shuang", "getType: bi2=" + bi);
-            if (bi >= 2 && bi < 3.5) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = "360ud";
             } else {
                 type = "3dud";
@@ -464,7 +477,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
             Log.d("shuang", "getType: bi3=" + bi);
-            if (bi >= 2 || (mBitmap.getWidth() * mScale >= 2000 && mBitmap.getHeight() * mScale > 1080)) {
+            if (edgeMatch(mBitmap1) == TYPE_360) {
                 type = "360";
             } else {
                 type = "2d";
@@ -480,13 +493,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String getHanming(String cvtype, List<ImagePiece> imagePieces) {
         String type = cvtype;
         String large = SimilarPhoto.find(imagePieces, 45);
-        String small = SimilarPhoto.find(imagePieces, 10);
+        String small = SimilarPhoto.find(imagePieces, 18);
         Log.d("shuang", "getHanming: large=" + large);
         Log.d("shuang", "getHanming: small=" + small);
         if (cvtype.equals("360lr") || cvtype.equals("3dlr")) {
             if (!large.equals(SimilarPhoto.TYPE_LR)) {
-                float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
-                if (bi >= 2 && bi < 3.5) {
+                if (edgeMatch(mBitmap1) == TYPE_360) {
                     type = "360";
                 } else {
                     type = "2d";
@@ -536,4 +548,85 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    public int edgeMatch(Bitmap srcb) {
+        //check top and bottom edge
+        float tb_totaldist = 0;
+        Mat src = new Mat();
+        Utils.bitmapToMat(srcb, src);
+        Log.d("test", "edgeMatch:src.cols()= " + src.rows());
+        Log.d("test", "edgeMatch:height= " + srcb.getHeight());
+        for (int i = 0; i < srcb.getWidth(); i++) {
+            tb_totaldist += distanceBetweenTwoPoints3D(Color.red(srcb.getPixel(i, 0)),
+                    Color.green(srcb.getPixel(i, 0)),
+                    Color.blue(srcb.getPixel(i, 0)),
+                    Color.red(srcb.getPixel(i, srcb.getHeight() - 1)),
+                    Color.blue(srcb.getPixel(i, srcb.getHeight() - 1)),
+                    Color.green(srcb.getPixel(i, srcb.getHeight() - 1)));
+        }
+        float tb_avedist = tb_totaldist / (float) srcb.getWidth();
+
+        //check left and right edge
+        boolean darkcheck = false;
+        boolean lightcheck = false;
+        boolean midcheck = false;
+        float lr_totaldist = 0;
+        Log.d("test", "edgeMatch:src.cols()= " + src.cols());
+        Log.d("test", "edgeMatch:width= " + srcb.getWidth());
+        for (int i = 0; i < srcb.getHeight(); i++) {
+            lr_totaldist += distanceBetweenTwoPoints3D(Color.red(srcb.getPixel(0, i)),
+                    Color.green(srcb.getPixel(0, i)),
+                    Color.blue(srcb.getPixel(0, i)),
+                    Color.red(srcb.getPixel(srcb.getWidth() - 1, i)),
+                    Color.green(srcb.getPixel(srcb.getWidth() - 1, i)),
+                    Color.blue(srcb.getPixel(srcb.getWidth() - 1, i)));
+
+            float colorsum = (Color.red(srcb.getPixel(i, 0)) + Color.green(srcb.getPixel(i, 0))
+                    + Color.blue(srcb.getPixel(i, 0))) / 3;
+            if (colorsum < 20) {
+                darkcheck = true;
+            }
+            if (colorsum > 230) {
+                lightcheck = true;
+            }
+            if (colorsum > 100 && colorsum < 200) {
+                midcheck = true;
+            }
+        }
+
+        float lr_avedist = lr_totaldist / (float) srcb.getHeight();
+
+        //cout << "topbottom " << tb_avedist << " leftright " << lr_avedist << endl;
+        Log.d("shuang", "lr_avedist= " + lr_avedist);
+        Log.d("shuang", "tb_avedist= " + tb_avedist);
+
+        Log.d("shuang", "darkcheck= " + darkcheck);
+        Log.d("shuang", "lightcheck= " + lightcheck);
+        Log.d("shuang", "midcheck= " + midcheck);
+        // return result by priority
+        if (lr_avedist < 0.5) {//solid colors are not good
+            return TYPE_NO;
+        }
+
+        if (tb_avedist > 40 && lr_avedist < 15) {//general 360 case, most 360 videos have different top and bottom
+            return TYPE_360;
+        }
+
+        if (lr_avedist < 10) {//some 360 videos have black white top and bottom edge
+            return TYPE_360;
+        }
+
+        if (lr_avedist > 50) {//very distinct 2D
+            return TYPE_2D;
+        }
+
+        if (lr_avedist < 25 && darkcheck == true && lightcheck == true && midcheck == true) {//lower requirement if edge is very distinctive
+            return TYPE_360;
+        }
+
+        return TYPE_NO;
+    }
+
+    double distanceBetweenTwoPoints3D(float x1, float y1, float z1, float x2, float y2, float z2) {
+        return sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2) + pow(z1 - z2, 2));
+    }
 }
