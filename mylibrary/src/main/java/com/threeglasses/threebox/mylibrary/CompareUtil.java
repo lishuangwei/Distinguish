@@ -333,9 +333,6 @@ public class CompareUtil {
 
     //比较视频
     private int getType(List<ImagePiece> list, List<ImagePiece> list1, List<ImagePiece> list2) {
-        if (mBitmap.getWidth() <= 1920 && mBitmap.getHeight() <= 1080) {
-            return TYPE_2D;
-        }
         double hor = similar(list.get(0).getBitmap(), list.get(1).getBitmap());
         double hor1 = similar(list.get(2).getBitmap(), list.get(3).getBitmap());
         double ver = similar(list.get(0).getBitmap(), list.get(2).getBitmap());
@@ -357,39 +354,34 @@ public class CompareUtil {
         Log.d("shuang", "getType: hor4=" + hor4 + "--ver4=" + ver4);
         Log.d("shuang", "getType: hor5=" + hor5 + "--ver5=" + ver5);
         int type = 0;
-        if (hor > ver && hor > 0.968 && hor1 > ver1 && hor1 > 0.968
-                && hor2 > ver2 && hor2 > 0.968 && hor3 > ver3 && hor3 > 0.968
-                && hor4 > ver4 && hor4 > 0.968 && hor5 > ver5 && hor5 > 0.968) {
-            float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi1=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = TYPE_360LR;
-            } else {
-                type = TYPE_3DLR;
-            }
-        } else if (ver > hor && ver > 0.968 && ver1 > hor1 && ver1 > 0.968
-                && ver2 > hor2 && ver2 > 0.968 && ver3 > hor3 && ver3 > 0.968
-                && ver4 > hor4 && ver4 > 0.968 && ver5 > hor5 && ver5 > 0.968) {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
-            Log.d("shuang", "getType: bi2=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = TYPE_360UD;
-            } else {
-                type = TYPE_3DUD;
-            }
+        int compare = compareHorVer(hor, ver, hor1, ver1);
+        int compare1 = compareHorVer(hor2, ver2, hor3, ver3);
+        int compare2 = compareHorVer(hor4, ver4, hor5, ver5);
+        if ((compare == 2 || compare == 0) && (compare1 == 0 || compare1 == 2) && (compare2 == 0 || compare2 == 2)) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360LR : TYPE_3DLR;
+        } else if ((compare == 2 || compare == 1) && (compare1 == 1 || compare1 == 2) && (compare2 == 1 || compare2 == 2)) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360UD : TYPE_3DUD;
         } else {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi3=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = TYPE_360;
-            } else {
-                type = TYPE_2D;
-            }
+            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360 : TYPE_2D;
         }
+
         Log.d("shuang", "getType: type before＝" + type);
         type = getHanming(type, list);
         Log.d("shuang", "getType: type after＝" + type);
         return type;
+    }
+
+    //0-横相似 1-竖相似 2-相同 3-不相似
+    private int compareHorVer(double hor, double ver, double hor1, double ver1) {
+        if (hor > ver && hor > 0.963 && hor1 > ver1 && hor1 > 0.963) {
+            return 0;
+        } else if (ver > hor && ver > 0.963 && ver1 > hor1 && ver1 > 0.963) {
+            return 1;
+        } else if (hor == 1.0 && ver == 1.0 && hor1 == 1.0 && ver1 == 1.0) {
+            return 2;
+        } else {
+            return 3;
+        }
     }
 
     //比较图片
@@ -401,30 +393,13 @@ public class CompareUtil {
         Log.d("shuang", "getType: hor=" + hor + "--ver=" + ver);
         Log.d("shuang", "getType: hor1=" + hor1 + "--ver1=" + ver1);
         int type = 0;
-        if (hor > ver && hor > 0.968 && hor1 > ver1 && hor1 > 0.968) {
-            float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi1=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = TYPE_360LR;
-            } else {
-                type = TYPE_3DLR;
-            }
-        } else if (ver > hor && ver > 0.968 && ver1 > hor1 && ver1 > 0.968) {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
-            Log.d("shuang", "getType: bi2=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = TYPE_360UD;
-            } else {
-                type = TYPE_3DUD;
-            }
+        int compare = compareHorVer(hor, ver, hor1, ver1);
+        if (compare == 0) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360LR : TYPE_3DLR;
+        } else if (compare == 1) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360UD : TYPE_3DUD;
         } else {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi3=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = TYPE_360;
-            } else {
-                type = TYPE_2D;
-            }
+            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360 : TYPE_2D;
         }
         Log.d("shuang", "getType: type before＝" + type);
         type = getHanming(type, list);
@@ -436,13 +411,12 @@ public class CompareUtil {
     private int getHanming(int cvtype, List<ImagePiece> imagePieces) {
         int type = cvtype;
         String large = SimilarPhoto.find(imagePieces, 45);
-        String small = SimilarPhoto.find(imagePieces, 18);
+        String small = SimilarPhoto.find(imagePieces, 10);
         Log.d("shuang", "getHanming: large=" + large);
         Log.d("shuang", "getHanming: small=" + small);
         if (cvtype == TYPE_360LR || cvtype == TYPE_3DLR) {
             if (!large.equals(SimilarPhoto.TYPE_LR)) {
-                float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
-                if (bi >= 2 && bi < 3.5) {
+                if (edgeMatch(mBitmap1) == TYPE_360) {
                     type = TYPE_360;
                 } else {
                     type = TYPE_2D;
@@ -569,15 +543,20 @@ public class CompareUtil {
         Log.d("shuang", "lightcheck= " + lightcheck);
         Log.d("shuang", "midcheck= " + midcheck);
         // return result by priority
+        if (lr_avedist == 0) {
+            if (srcb.equals(mBitmap)) return TYPE_ERROR;
+            return edgeMatch(mBitmap);
+        }
+
         if (lr_avedist < 0.5) {//solid colors are not good
             return TYPE_ERROR;
         }
 
-        if (tb_avedist > 40 && lr_avedist < 15) {//general 360 case, most 360 videos have different top and bottom
+        if ((tb_avedist > 40 || tb_avedist == 0) && lr_avedist < 15) {//general 360 case, most 360 videos have different top and bottom
             return TYPE_360;
         }
 
-        if (lr_avedist < 10) {//some 360 videos have black white top and bottom edge
+        if (lr_avedist < 12) {//some 360 videos have black white top and bottom edge
             return TYPE_360;
         }
 

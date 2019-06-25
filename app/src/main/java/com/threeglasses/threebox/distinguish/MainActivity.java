@@ -390,9 +390,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     //比较视频
     private String getType(List<ImagePiece> list, List<ImagePiece> list1, List<ImagePiece> list2) {
-        if (mBitmap.getWidth() <= 1920 && mBitmap.getHeight() <= 1080) {
-            return "2d";
-        }
         double hor = similar(list.get(0).getBitmap(), list.get(1).getBitmap());
         double hor1 = similar(list.get(2).getBitmap(), list.get(3).getBitmap());
         double ver = similar(list.get(0).getBitmap(), list.get(2).getBitmap());
@@ -414,40 +411,35 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Log.d("shuang", "getType: hor4=" + hor4 + "--ver4=" + ver4);
         Log.d("shuang", "getType: hor5=" + hor5 + "--ver5=" + ver5);
         String type = "";
-        if (hor > ver && hor > 0.968 && hor1 > ver1 && hor1 > 0.968
-                && hor2 > ver2 && hor2 > 0.968 && hor3 > ver3 && hor3 > 0.968
-                && hor4 > ver4 && hor4 > 0.968 && hor5 > ver5 && hor5 > 0.968) {
-            float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi1=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = "360lr";
-            } else {
-                type = "3dlr";
-            }
-        } else if (ver > hor && ver > 0.968 && ver1 > hor1 && ver1 > 0.968
-                && ver2 > hor2 && ver2 > 0.968 && ver3 > hor3 && ver3 > 0.968
-                && ver4 > hor4 && ver4 > 0.968 && ver5 > hor5 && ver5 > 0.968) {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
-            Log.d("shuang", "getType: bi2=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = "360ud";
-            } else {
-                type = "3dud";
-            }
+        int compare = compareHorVer(hor, ver, hor1, ver1);
+        int compare1 = compareHorVer(hor2, ver2, hor3, ver3);
+        int compare2 = compareHorVer(hor4, ver4, hor5, ver5);
+        if ((compare == 2 || compare == 0) && (compare1 == 0 || compare1 == 2) && (compare2 == 0 || compare2 == 2)) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? "360lr" : "3dlr";
+        } else if ((compare == 2 || compare == 1) && (compare1 == 1 || compare1 == 2) && (compare2 == 1 || compare2 == 2)) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? "360ud" : "3dud";
         } else {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi3=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = "360";
-            } else {
-                type = "2d";
-            }
+            type = edgeMatch(mBitmap1) == TYPE_360 ? "360" : "2d";
         }
         Log.d("shuang", "getType: type before＝" + type);
         type = getHanming(type, list);
         Log.d("shuang", "getType: type after＝" + type);
         return type;
     }
+
+    //0-横相似 1-竖相似 2-相同 3-不相似
+    private int compareHorVer(double hor, double ver, double hor1, double ver1) {
+        if (hor > ver && hor > 0.963 && hor1 > ver1 && hor1 > 0.963) {
+            return 0;
+        } else if (ver > hor && ver > 0.963 && ver1 > hor1 && ver1 > 0.963) {
+            return 1;
+        } else if (hor == 1.0 && ver == 1.0 && hor1 == 1.0 && ver1 == 1.0) {
+            return 2;
+        } else {
+            return 3;
+        }
+    }
+
 
     //比较图片
     private String getType(List<ImagePiece> list) {
@@ -458,30 +450,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Log.d("shuang", "getType: hor=" + hor + "--ver=" + ver);
         Log.d("shuang", "getType: hor1=" + hor1 + "--ver1=" + ver1);
         String type = "";
-        if (hor > ver && hor > 0.968 && hor1 > ver1 && hor1 > 0.968) {
-            float bi = (float) (mBitmap.getWidth() / 2) / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi1=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = "360lr";
-            } else {
-                type = "3dlr";
-            }
-        } else if (ver > hor && ver > 0.968 && ver1 > hor1 && ver1 > 0.968) {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight() / 2);
-            Log.d("shuang", "getType: bi2=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = "360ud";
-            } else {
-                type = "3dud";
-            }
+        int compare = compareHorVer(hor, ver, hor1, ver1);
+        if (compare == 0) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? "360lr" : "3dlr";
+        } else if (compare == 1) {
+            type = edgeMatch(mBitmap1) == TYPE_360 ? "360ud" : "3dud";
         } else {
-            float bi = (float) mBitmap.getWidth() / (mBitmap.getHeight());
-            Log.d("shuang", "getType: bi3=" + bi);
-            if (edgeMatch(mBitmap1) == TYPE_360) {
-                type = "360";
-            } else {
-                type = "2d";
-            }
+            type = edgeMatch(mBitmap1) == TYPE_360 ? "360" : "2d";
         }
         Log.d("shuang", "getType: type before＝" + type);
         type = getHanming(type, list);
@@ -493,7 +468,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String getHanming(String cvtype, List<ImagePiece> imagePieces) {
         String type = cvtype;
         String large = SimilarPhoto.find(imagePieces, 45);
-        String small = SimilarPhoto.find(imagePieces, 18);
+        String small = SimilarPhoto.find(imagePieces, 10);
         Log.d("shuang", "getHanming: large=" + large);
         Log.d("shuang", "getHanming: small=" + small);
         if (cvtype.equals("360lr") || cvtype.equals("3dlr")) {
@@ -595,7 +570,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         float lr_avedist = lr_totaldist / (float) srcb.getHeight();
 
-        //cout << "topbottom " << tb_avedist << " leftright " << lr_avedist << endl;
         Log.d("shuang", "lr_avedist= " + lr_avedist);
         Log.d("shuang", "tb_avedist= " + tb_avedist);
 
@@ -603,15 +577,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Log.d("shuang", "lightcheck= " + lightcheck);
         Log.d("shuang", "midcheck= " + midcheck);
         // return result by priority
+        if (lr_avedist == 0) {
+            if (srcb.equals(mBitmap)) return TYPE_NO;
+            return edgeMatch(mBitmap);
+        }
+
         if (lr_avedist < 0.5) {//solid colors are not good
             return TYPE_NO;
         }
 
-        if (tb_avedist > 40 && lr_avedist < 15) {//general 360 case, most 360 videos have different top and bottom
+        if ((tb_avedist > 40 || tb_avedist == 0) && lr_avedist < 15) {//general 360 case, most 360 videos have different top and bottom
             return TYPE_360;
         }
 
-        if (lr_avedist < 10) {//some 360 videos have black white top and bottom edge
+        if (lr_avedist < 12) {//some 360 videos have black white top and bottom edge
             return TYPE_360;
         }
 
@@ -622,7 +601,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (lr_avedist < 25 && darkcheck == true && lightcheck == true && midcheck == true) {//lower requirement if edge is very distinctive
             return TYPE_360;
         }
-
         return TYPE_NO;
     }
 

@@ -7,4 +7,4 @@
 /build
 /captures
 .externalNativeBuild
-openCVLibrary320/build/
+/openCVLibrary320/build/*

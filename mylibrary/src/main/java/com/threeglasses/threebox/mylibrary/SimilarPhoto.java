@@ -30,11 +30,11 @@ public class SimilarPhoto {
         int ver1 = hamDist(Long.parseLong(photos.get(1).getFinger()), Long.parseLong(photos.get(3).getFinger()));
         Log.d("shuang", "hamDist: ver 汉明距离=" + ver);
         Log.d("shuang", "hamDist: ver1 汉明距离=" + ver1);
-        int avgh = (hor + hor1) / 2;
-        int avgv = (ver + ver1) / 2;
-        if (avgh <= avgv && avgh <= small && hor > 0 && hor1 > 0) {
+        float avgh = (hor + hor1) / 2.0f;
+        float avgv = (ver + ver1) / 2.0f;
+        if (avgh <= avgv && avgh <= small && avgh > 0) {
             return TYPE_LR;
-        } else if (avgv <= avgh && avgv <= small && avgv > 0 && ver > 0 && ver1 > 0) {
+        } else if (avgv <= avgh && avgv <= small && avgv > 0) {
             return TYPE_UD;
         } else {
             return TYPE_NO;
