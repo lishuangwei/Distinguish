@@ -9,7 +9,9 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -91,6 +93,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onResume() {
         super.onResume();
+
     }
 
     private void init() {
@@ -307,7 +310,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if ("file".equalsIgnoreCase(uri.getScheme())) {
             return uri.getPath();
         }
-        return null;
+        return uri.getPath();
     }
 
     public static boolean isExternalStorageDocument(Uri uri) {
@@ -415,11 +418,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int compare1 = compareHorVer(hor2, ver2, hor3, ver3);
         int compare2 = compareHorVer(hor4, ver4, hor5, ver5);
         if ((compare == 2 || compare == 0) && (compare1 == 0 || compare1 == 2) && (compare2 == 0 || compare2 == 2)) {
-            type = edgeMatch(mBitmap1) == TYPE_360 ? "360lr" : "3dlr";
+            type = getEdgeMatch(mBitmap, mBitmap1, mBitmap2) == TYPE_360 ? "360lr" : "3dlr";
         } else if ((compare == 2 || compare == 1) && (compare1 == 1 || compare1 == 2) && (compare2 == 1 || compare2 == 2)) {
-            type = edgeMatch(mBitmap1) == TYPE_360 ? "360ud" : "3dud";
+            type = getEdgeMatch(mBitmap, mBitmap1, mBitmap2) == TYPE_360 ? "360ud" : "3dud";
         } else {
-            type = edgeMatch(mBitmap1) == TYPE_360 ? "360" : "2d";
+            type = getEdgeMatch(mBitmap, mBitmap1, mBitmap2) == TYPE_360 ? "360" : "2d";
         }
         Log.d("shuang", "getType: type before＝" + type);
         type = getHanming(type, list);
@@ -521,6 +524,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             super.onPostExecute(s);
             mTxt.setText(s);
         }
+    }
+
+    public int getEdgeMatch(Bitmap... bitmap) {
+        if (bitmap.length == 3) {
+            int result = edgeMatch(bitmap[0]);
+            int result1 = edgeMatch(bitmap[1]);
+            int result2 = edgeMatch(bitmap[2]);
+            Log.d("shuang", "getEdgeMatch: result=" + result + "---" + result1 + "---" + result2);
+            if (result == TYPE_2D || result1 == TYPE_2D || result2 == TYPE_2D) {
+                return TYPE_2D;
+            } else if (result == TYPE_360 && result1 == TYPE_360 && result2 == TYPE_360) {
+                return TYPE_360;
+            } else {
+                return TYPE_NO;
+            }
+        } else {
+            return TYPE_NO;
+        }
+
     }
 
     public int edgeMatch(Bitmap srcb) {

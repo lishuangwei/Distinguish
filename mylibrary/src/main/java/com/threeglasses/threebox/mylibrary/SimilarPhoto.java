@@ -24,12 +24,12 @@ public class SimilarPhoto {
         calculateFingerPrint(photos);
         int hor = hamDist(Long.parseLong(photos.get(0).getFinger()), Long.parseLong(photos.get(1).getFinger()));
         int hor1 = hamDist(Long.parseLong(photos.get(2).getFinger()), Long.parseLong(photos.get(3).getFinger()));
-        Log.d("shuang", "hamDist: hor 汉明距离=" + hor);
-        Log.d("shuang", "hamDist: hor1 汉明距离=" + hor1);
+        Log.d("shuang", "hamDist: hor hanming=" + hor);
+        Log.d("shuang", "hamDist: hor1 hanming=" + hor1);
         int ver = hamDist(Long.parseLong(photos.get(0).getFinger()), Long.parseLong(photos.get(2).getFinger()));
         int ver1 = hamDist(Long.parseLong(photos.get(1).getFinger()), Long.parseLong(photos.get(3).getFinger()));
-        Log.d("shuang", "hamDist: ver 汉明距离=" + ver);
-        Log.d("shuang", "hamDist: ver1 汉明距离=" + ver1);
+        Log.d("shuang", "hamDist: ver hanming=" + ver);
+        Log.d("shuang", "hamDist: ver1 hanming=" + ver1);
         float avgh = (hor + hor1) / 2.0f;
         float avgv = (ver + ver1) / 2.0f;
         if (avgh <= avgv && avgh <= small && avgh > 0) {

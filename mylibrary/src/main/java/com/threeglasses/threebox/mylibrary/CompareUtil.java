@@ -2,6 +2,7 @@ package com.threeglasses.threebox.mylibrary;
 
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -218,7 +219,7 @@ public class CompareUtil {
 
     //获取视频路径
     public String getPath(Context context, Uri uri) {
-        Log.d("shuang", "getPath: uri=" + uri);
+        Log.d("shuang", "getPath: uri=" + uri.getPath() + "---" + uri.toString());
         boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
         if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
             if (isExternalStorageDocument(uri)) {
@@ -250,7 +251,7 @@ public class CompareUtil {
         } else if ("file".equalsIgnoreCase(uri.getScheme())) {
             return uri.getPath();
         }
-        return null;
+        return uri.getPath();
     }
 
     public static boolean isExternalStorageDocument(Uri uri) {
@@ -358,16 +359,19 @@ public class CompareUtil {
         int compare1 = compareHorVer(hor2, ver2, hor3, ver3);
         int compare2 = compareHorVer(hor4, ver4, hor5, ver5);
         if ((compare == 2 || compare == 0) && (compare1 == 0 || compare1 == 2) && (compare2 == 0 || compare2 == 2)) {
-            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360LR : TYPE_3DLR;
-        } else if ((compare == 2 || compare == 1) && (compare1 == 1 || compare1 == 2) && (compare2 == 1 || compare2 == 2)) {
-            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360UD : TYPE_3DUD;
+            type = getEdgeMatch(mSelImg.get(0).getBitmap(), mSelImg1.get(0).getBitmap(), mSelImg2.get(0).getBitmap()) ==
+                    TYPE_360 ? TYPE_360LR : TYPE_3DLR;
+        } else if ((compare == 2 || compare == 1) && (compare1 == 1 || compare1 == 2) &&
+                (compare2 == 1 || compare2 == 2)) {
+            type = getEdgeMatch(mBitmap, mBitmap1, mBitmap2) == TYPE_360 ? TYPE_360UD : TYPE_3DUD;
         } else {
-            type = edgeMatch(mBitmap1) == TYPE_360 ? TYPE_360 : TYPE_2D;
+            type = getEdgeMatch(mBitmap, mBitmap1, mBitmap2) == TYPE_360 ? TYPE_360 : TYPE_2D;
         }
 
         Log.d("shuang", "getType: type before＝" + type);
         type = getHanming(type, list);
         Log.d("shuang", "getType: type after＝" + type);
+        if (type == TYPE_ERROR) type = TYPE_2D;
         return type;
     }
 
@@ -404,6 +408,7 @@ public class CompareUtil {
         Log.d("shuang", "getType: type before＝" + type);
         type = getHanming(type, list);
         Log.d("shuang", "getType: type after＝" + type);
+        if (type == TYPE_ERROR) type = TYPE_2D;
         return type;
     }
 
@@ -485,6 +490,24 @@ public class CompareUtil {
             } else {
                 onDataFinishedListener.onDataFailed();
             }
+        }
+    }
+
+    public int getEdgeMatch(Bitmap... bitmap) {
+        if (bitmap.length == 3) {
+            int result = edgeMatch(bitmap[0]);
+            int result1 = edgeMatch(bitmap[1]);
+            int result2 = edgeMatch(bitmap[2]);
+            Log.d("shuang", "getEdgeMatch: result=" + result + "---" + result1 + "---" + result2);
+            if (result == TYPE_2D || result1 == TYPE_2D || result2 == TYPE_2D) {
+                return TYPE_2D;
+            } else if (result == TYPE_360 && result1 == TYPE_360 && result2 == TYPE_360) {
+                return TYPE_360;
+            } else {
+                return TYPE_ERROR;
+            }
+        } else {
+            return TYPE_ERROR;
         }
     }
 
